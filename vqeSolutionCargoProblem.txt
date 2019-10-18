@@ -1,0 +1,136 @@
+%matplotlib inline
+# Importing standard Qiskit libraries and configuring account
+from qiskit import QuantumCircuit, execute, Aer, IBMQ
+from qiskit.compiler import transpile, assemble
+from qiskit.tools.jupyter import *
+from qiskit.visualization import *
+# Loading your IBM Q account(s)
+provider = IBMQ.load_account()
+
+import numpy as np
+import math
+from qiskit.quantum_info import Pauli
+from qiskit.aqua.operators import WeightedPauliOperator
+from qiskit.aqua import Operator, run_algorithm
+from qiskit.aqua.input import EnergyInput
+from collections import OrderedDict
+from qiskit import BasicAer 
+from qiskit.aqua import QuantumInstance
+from qiskit.aqua.algorithms import VQE
+from qiskit.aqua.components.optimizers import COBYLA
+from qiskit.aqua.components.variational_forms import RY
+
+def get_KanpSack_Hb_qubitops(weight_matrix, c):
+   
+    pauli_list = []
+    n = weight_matrix.shape[0]
+    shift = 0
+    s = math.log2(c)
+    m = math.trunc(s)
+    for i in range(n + m + 1): #ver cual es bien el rango
+                if i < n:  
+                    xp = np.zeros(n + m + 1, dtype=np.bool)
+                    zp = np.zeros(n + m + 1, dtype=np.bool)
+                    zp[i] = True
+                    pauli_list.append([0.5 * weight_matrix[i], Pauli(zp, xp)])
+                    shift -= 0.5 * weight_matrix[i]
+					
+	return WeightedPauliOperator(paulis=pauli_list), shift
+	
+def get_KanpSack_Ha_qubitops(c,n,volum_matrix):
+    
+    pauli_list2 = []
+    shift = 0
+    n = 5
+    s = math.log2(c)
+    m = math.trunc(s)
+    
+    for i in range(m + 1 + n): 
+        if i >= n:
+            if i < n+m:  
+                xp = np.zeros(m + 1 + n, dtype=np.bool)
+                zp = np.zeros(m + 1 + n, dtype=np.bool)
+                zp[i] = True
+                pauli_list2.append([10*math.pow(2,i-(n)), Pauli(zp, xp)])
+                shift -= 0.5
+                print(Pauli(zp, xp))
+                
+           
+        if i == n+m:
+            xp2 = np.zeros(m + 1 + n, dtype=np.bool)
+            zp2 = np.zeros(m + 1 + n, dtype=np.bool)  
+            zp2[n+m]
+            pauli_list2.append([10*(c-math.pow(2,m)+1),Pauli(zp2,xp2)])
+            print(Pauli(zp, xp))
+            
+    
+    for i in range(m + 1 + n):
+        if i<n:
+            xp = np.zeros(m + 1 + n, dtype=np.bool)
+            zp = np.zeros(m + 1 + n, dtype=np.bool)
+            zp[i] = True
+            pauli_list2.append([10*(-0.5)*volum_matrix[i-n], Pauli(zp, xp)])
+            shift -= 0.5
+            print(Pauli(zp, xp))
+            
+    return WeightedPauliOperator(paulis=pauli_list2), shift
+	
+
+	Weight_matrix = np.array((4,5,2,9,7))
+volum_matrix = np.array((4,1,1,2,2))
+Ha, q1 = get_KanpSack_Ha_qubitops(4, 5, volum_matrix)
+Hb, q2 = get_KanpSack_Hb_qubitops(Weight_matrix, 4)
+
+Haf = Ha.multiply(Ha)
+Ht = Haf.add(Hb)
+
+backend = BasicAer.get_backend('statevector_simulator')
+seed = 50
+
+cobyla = COBYLA()
+cobyla.set_options(maxiter=500)
+ry = RY(Ht.num_qubits, depth=3, entanglement='full')
+vqe = VQE(Ht, ry, cobyla)
+vqe.random_seed = seed
+
+quantum_instance = QuantumInstance(backend=backend, seed_simulator=seed, seed_transpiler=seed)
+
+result = vqe.run(quantum_instance)
+
+
+def sample_most_likely(state_vector):
+    if isinstance(state_vector, (OrderedDict, dict)):
+        # get the binary string with the largest count
+        binary_string = sorted(state_vector.items(), key=lambda kv: kv[1])[-1][0]
+        x = np.asarray([int(y) for y in reversed(list(binary_string))])
+        return x
+    else:
+        n = int(np.log2(state_vector.shape[0]))
+        k = np.argmax(np.abs(state_vector))
+        x = np.zeros(n)
+        for i in range(n):
+            x[i] = k % 2
+            k >>= 1
+        return x
+		
+		
+def index_to_selection(i, num_assets):
+    s = "{0:b}".format(i).rjust(num_assets)
+    x = np.array([1 if s[i]=='1' else 0 for i in reversed(range(num_assets))])
+    return x
+
+def print_result(result):
+    sml = sample_most_likely(result['eigvecs'][0])
+    
+    probabilities = np.abs(result['eigvecs'][0])**2
+    i_sorted = reversed(np.argsort(probabilities))
+    print('\n------------ Full result ----------------')
+    print('selection\t\tprobability')
+    print('-----------------------------------------')
+    for i in i_sorted:
+        x = index_to_selection(i, 8) #ese 8 son los num de qbits, si se pone 5 seria num container  
+        probability = probabilities[i]
+        print('%10s\t\t%.4f' %(x, probability))
+		
+		
+print_result(result)
