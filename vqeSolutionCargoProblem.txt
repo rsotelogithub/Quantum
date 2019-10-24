@@ -20,14 +20,31 @@ from qiskit.aqua.algorithms import VQE
 from qiskit.aqua.components.optimizers import COBYLA
 from qiskit.aqua.components.variational_forms import RY
 
-def get_KanpSack_Hb_qubitops(weight_matrix, c):
+def get_KnapSack_Hb_qubitops(weight_matrix, c):
+
+    #Generate Hamiltonian B component for the knapsack problem.
+    #n = number of containers
+    
+    #Args:
+    #weight_matrix (numpy.ndarray) : weights matrix (vector).
+    #c = maximum volume posible.
+
+    #Returns:
+    #operator.Operator, float: operator for the Hamiltonian and a constant shift for the obj function.
+   
+    # n + m + 1 = total of qubits to be used for creating de hamiltonian, and total of gates of the final hamiltonian
+   
+    # this method works on the first n gates, providing all de different combinations of weigths
    
     pauli_list = []
     n = weight_matrix.shape[0]
     shift = 0
     s = math.log2(c)
     m = math.trunc(s)
-    for i in range(n + m + 1): #ver cual es bien el rango
+
+    
+
+    for i in range(n + m + 1):                        
                 if i < n:  
                     xp = np.zeros(n + m + 1, dtype=np.bool)
                     zp = np.zeros(n + m + 1, dtype=np.bool)
@@ -35,9 +52,23 @@ def get_KanpSack_Hb_qubitops(weight_matrix, c):
                     pauli_list.append([0.5 * weight_matrix[i], Pauli(zp, xp)])
                     shift -= 0.5 * weight_matrix[i]
 					
-	return WeightedPauliOperator(paulis=pauli_list), shift
+    return WeightedPauliOperator(paulis=pauli_list), shift
 	
-def get_KanpSack_Ha_qubitops(c,n,volum_matrix):
+def get_KnapSack_Ha_qubitops(c,n,volum_matrix):
+    
+
+    #Generate Hamiltonian A component for the knapsack problem.
+    
+    #Args:
+    #volum_matrix (numpy.ndarray) : volum matrix (vector).
+    #c = maximum volume posible.
+    #n = number of containers
+
+    #Returns:
+    #operator.Operator, float: operator for the Hamiltonian and a constant shift for the obj function.
+
+    #This method works in all of the gates, pleasing the restraints of the problem.
+
     
     pauli_list2 = []
     shift = 0
@@ -45,7 +76,7 @@ def get_KanpSack_Ha_qubitops(c,n,volum_matrix):
     s = math.log2(c)
     m = math.trunc(s)
     
-    for i in range(m + 1 + n): 
+    for i in range(m + 1 + n):                      
         if i >= n:
             if i < n+m:  
                 xp = np.zeros(m + 1 + n, dtype=np.bool)
@@ -76,29 +107,32 @@ def get_KanpSack_Ha_qubitops(c,n,volum_matrix):
     return WeightedPauliOperator(paulis=pauli_list2), shift
 	
 
-	Weight_matrix = np.array((4,5,2,9,7))
+Weight_matrix = np.array((4,5,2,9,7))
 volum_matrix = np.array((4,1,1,2,2))
-Ha, q1 = get_KanpSack_Ha_qubitops(4, 5, volum_matrix)
-Hb, q2 = get_KanpSack_Hb_qubitops(Weight_matrix, 4)
+Ha, q1 = get_KnapSack_Ha_qubitops(4, 5, volum_matrix)
+Hb, q2 = get_KnapSack_Hb_qubitops(Weight_matrix, 4)
 
 Haf = Ha.multiply(Ha)
 Ht = Haf.add(Hb)
 
-backend = BasicAer.get_backend('statevector_simulator')
-seed = 50
-
-cobyla = COBYLA()
-cobyla.set_options(maxiter=500)
-ry = RY(Ht.num_qubits, depth=3, entanglement='full')
-vqe = VQE(Ht, ry, cobyla)
-vqe.random_seed = seed
-
-quantum_instance = QuantumInstance(backend=backend, seed_simulator=seed, seed_transpiler=seed)
-
-result = vqe.run(quantum_instance)
+backend = BasicAer.get_backend('statevector_simulator')                                          #
+seed = 50       										 #
+												 #
+cobyla = COBYLA()										 #
+cobyla.set_options(maxiter=500)									 #
+ry = RY(Ht.num_qubits, depth=3, entanglement='full')						 #
+vqe = VQE(Ht, ry, cobyla)									 # running vqe algorithm
+vqe.random_seed = seed										 #
+												 #
+quantum_instance = QuantumInstance(backend=backend, seed_simulator=seed, seed_transpiler=seed)   #
+												 #
+result = vqe.run(quantum_instance)								 #
 
 
 def sample_most_likely(state_vector):
+
+    # returns all de different combinations of the x vector(first m+1 coordinates are the maximum capability of the cargo conditioned to the elements to load)
+    # (the rest n coordinates indicates which container goes)
     if isinstance(state_vector, (OrderedDict, dict)):
         # get the binary string with the largest count
         binary_string = sorted(state_vector.items(), key=lambda kv: kv[1])[-1][0]
@@ -114,12 +148,16 @@ def sample_most_likely(state_vector):
         return x
 		
 		
-def index_to_selection(i, num_assets):
-    s = "{0:b}".format(i).rjust(num_assets)
-    x = np.array([1 if s[i]=='1' else 0 for i in reversed(range(num_assets))])
+def index_to_selection(i, num_qubits)
+    
+    # List all de posible X vector in order from more probabilitiy to less probability
+    s = "{0:b}".format(i).rjust(num_qubits)
+    x = np.array([1 if s[i]=='1' else 0 for i in reversed(range(num_qubits))])
     return x
 
 def print_result(result):
+    
+    # Prints the x vectors with its probabilities in decreasing form.
     sml = sample_most_likely(result['eigvecs'][0])
     
     probabilities = np.abs(result['eigvecs'][0])**2
