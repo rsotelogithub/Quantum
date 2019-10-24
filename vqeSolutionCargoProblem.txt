@@ -87,12 +87,12 @@ def get_KnapSack_Ha_qubitops(c,n,volum_matrix):
                 print(Pauli(zp, xp))
                 
            
-        if i == n+m:
-            xp2 = np.zeros(m + 1 + n, dtype=np.bool)
-            zp2 = np.zeros(m + 1 + n, dtype=np.bool)  
-            zp2[n+m]
-            pauli_list2.append([10*(c-math.pow(2,m)+1),Pauli(zp2,xp2)])
-            print(Pauli(zp, xp))
+            if i == n+m:
+                xp = np.zeros(m + 1 + n, dtype=np.bool)
+                zp = np.zeros(m + 1 + n, dtype=np.bool)  
+                zp[i] = True
+                pauli_list2.append([10*(c-math.pow(2,m)+1),Pauli(zp,xp)])
+                print(Pauli(zp, xp))
             
     
     for i in range(m + 1 + n):
