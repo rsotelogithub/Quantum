@@ -78,20 +78,21 @@ def get_KnapSack_Ha_qubitops(c,n,volum_matrix):
     
     for i in range(m + 1 + n):                      
         if i >= n:
+	    e = 0
             if i < n+m:  
                 xp = np.zeros(m + 1 + n, dtype=np.bool)
                 zp = np.zeros(m + 1 + n, dtype=np.bool)
                 zp[i] = True
-                pauli_list2.append([10*math.pow(2,i-(n)), Pauli(zp, xp)])
+                pauli_list2.append([math.pow(2,e), Pauli(zp, xp)])
                 shift -= 0.5
                 print(Pauli(zp, xp))
-                
+                e=e+1
            
             if i == n+m:
                 xp = np.zeros(m + 1 + n, dtype=np.bool)
                 zp = np.zeros(m + 1 + n, dtype=np.bool)  
                 zp[i] = True
-                pauli_list2.append([10*(c-math.pow(2,m)+1),Pauli(zp,xp)])
+                pauli_list2.append([(c-math.pow(2,m)+1),Pauli(zp,xp)])
                 print(Pauli(zp, xp))
             
     
@@ -100,20 +101,21 @@ def get_KnapSack_Ha_qubitops(c,n,volum_matrix):
             xp = np.zeros(m + 1 + n, dtype=np.bool)
             zp = np.zeros(m + 1 + n, dtype=np.bool)
             zp[i] = True
-            pauli_list2.append([10*(-0.5)*volum_matrix[i-n], Pauli(zp, xp)])
+            pauli_list2.append([(-0.5)*volum_matrix[n-(i+1)], Pauli(zp, xp)])
             shift -= 0.5
             print(Pauli(zp, xp))
             
     return WeightedPauliOperator(paulis=pauli_list2), shift
 	
 
-Weight_matrix = np.array((4,5,2,9,7))
-volum_matrix = np.array((4,1,1,2,2))
-Ha, q1 = get_KnapSack_Ha_qubitops(4, 5, volum_matrix)
-Hb, q2 = get_KnapSack_Hb_qubitops(Weight_matrix, 4)
+Weight_matrix = np.array((2134,3455,1866,1699,3500))
+volum_matrix = np.array((1,1,1,1,1))
+Ha, q1 = get_KnapSack_Ha_qubitops(3, 5, volum_matrix)
+Hb, q2 = get_KnapSack_Hb_qubitops(Weight_matrix, 3)
 
 Haf = Ha.multiply(Ha)
-Ht = Haf.add(Hb)
+haf = 3700*Haf
+Ht = haf.add(Hb)
 
 backend = BasicAer.get_backend('statevector_simulator')                                          #
 seed = 50       										 #
@@ -166,7 +168,7 @@ def print_result(result):
     print('selection\t\tprobability')
     print('-----------------------------------------')
     for i in i_sorted:
-        x = index_to_selection(i, 8) #ese 8 son los num de qbits, si se pone 5 seria num container  
+        x = index_to_selection(i, 7) #ese 7 son los num de qbits  
         probability = probabilities[i]
         print('%10s\t\t%.4f' %(x, probability))
 		
